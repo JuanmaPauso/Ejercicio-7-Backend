@@ -12,6 +12,7 @@ app.use(methodOverride('_method', { methods: ["POST", "GET"] }));
 // ========== MODEL ==========
 
 const Sequelize = require('sequelize');
+const { response } = require('express');
 
 const options = { logging: false, operatorsAliases: false };
 const sequelize = new Sequelize("sqlite:db.sqlite", options);
@@ -125,6 +126,7 @@ const resultView = (id, msg, response) =>
 
 
 // View to show the form to create a new quiz.
+
 const newView = quiz => {
     return `<!doctype html>
   <html>
@@ -136,8 +138,9 @@ const newView = quiz => {
   <body>
     <h1>Create New Quiz</h1>
     <form method="POST" action="/quizzes">
-      ${commonPart(quiz)}
-      <input type="submit" class="button" value="Create">
+    <input type="text" name="question" value="${quiz.question}" placeholder="Question" />
+    <input type="text" name="answer"   value="${quiz.answer}" placeholder="Answer" />
+    <input type="submit" class="button" value="Create">
     </form>
     <br>
     <a href="/quizzes" class="button">Go back</a>
@@ -147,8 +150,26 @@ const newView = quiz => {
 
 
 // View to show a form to edit a given quiz.
-const editView = (quiz) => {
+const editView = quiz => {
     // .... introducir código
+    return `<!doctype html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <title>Quiz</title>
+    ${style}
+  </head>
+  <body>
+    <h1>Edit Quiz</h1>
+    <form method="POST" action="/quizzes/${quiz.id}?_method=PUT">
+    <input type="text" name="question" value="${quiz.question}" placeholder="Question" />
+    <input type="text" name="answer"   value="${quiz.answer}" placeholder="Answer" />
+    <input type="submit" class="button" value="Update">
+    </form>
+    <br>
+    <a href="/quizzes" class="button">Go back</a>
+  </body>
+  </html>`;
 }
 
 
@@ -201,8 +222,11 @@ const checkController = async (req, res, next) => {
 
 // GET /quizzes/new
 const newController = async (req, res, next) => {
-    const quiz = {question: "", answer: ""};
-    res.send(newView(quiz));
+    
+        const quiz = {question: "", answer: ""};
+        res.send(newView(quiz));
+
+    
 };
 
 // POST /quizzes
@@ -218,8 +242,17 @@ const createController = async (req, res, next) => {
 };
 
 //  GET /quizzes/:id/edit
-const editController = (req, res, next) => {
+const editController = async (req, res, next) => {
     // .... introducir código
+    const id = Number(req.params.id);
+
+    try {
+        const quiz = await Quiz.findByPk(id);
+        if (quiz) res.send(editView(quiz));
+        else next(new Error(`Quiz ${id} not found.`));
+    } catch (err) {
+        next(err)
+    }
 };
 
 //  PUT /quizzes/:id
@@ -230,6 +263,9 @@ const updateController = (req, res, next) => {
 // DELETE /quizzes/:id
 const destroyController = (req, res, next) => {
     // .... introducir código
+    const id = Number(req.params.id);
+    Quiz.destroy({ where: {id}});
+    res.redirect(`/quizzes`);
 };
 
 
@@ -246,6 +282,9 @@ app.post('/quizzes', createController);
 //   GET  /quizzes/:id/edit
 //   PUT  /quizzes/:id
 //   DELETE  /quizzes/:id
+app.get('/quizzes/:id/edit', editController);
+app.put('/quizzes', updateController);
+app.delete('/quizzes/:id', destroyController);
 
 
 app.all('*', (req, res) =>
